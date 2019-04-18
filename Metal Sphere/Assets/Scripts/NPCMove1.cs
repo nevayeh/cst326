@@ -23,6 +23,7 @@ public class NPCMove1 : MonoBehaviour
     public AudioClip clip3;
 
     private float TargetDistance;
+    public float fieldOfViewDegrees = 120f;
     private double count;
 
     private bool notChase;
@@ -32,7 +33,22 @@ public class NPCMove1 : MonoBehaviour
     private bool once2;
     private bool pursuit;
 
+    public float spreadFactor = 0.02f;
+
+    //Vector3 direction = transform.forward;
+
+    //direction.x += Random.Range(-spreadFactor, spreadFactor);
+    //direction.y += Random.Range(-spreadFactor, spreadFactor);
+    //direction.z += Random.Range(-spreadFactor, spreadFactor);
+
+
     // Start is called before the first frame update
+    void awake()
+    {
+        SetPatrol();
+        once = false;
+    }
+
     void Start()
     {
         alert.gameObject.SetActive(false);
@@ -46,11 +62,13 @@ public class NPCMove1 : MonoBehaviour
         pursuit = false;
         count = 0;
 
+        //Sound/clips
         AudioSource[] audioSources = GetComponents<AudioSource>();
         source = audioSources[0];
         clip1 = audioSources[1].clip;
         clip2 = audioSources[0].clip;
         clip3 = audioSources[2].clip;
+
     }
 
     void Update()
@@ -65,14 +83,60 @@ public class NPCMove1 : MonoBehaviour
         {
             //Debug.Log("Chasing");
             SetDestination();
-        }*/
+
+
+
+        function CanSeePlayer() : boolean{*/
+ 
+        RaycastHit hit;
+        Vector3 rayDirection = destination.transform.position - transform.position;
+ 
+        if ((Vector3.Angle(rayDirection, transform.forward)) <= fieldOfViewDegrees * 0.5f)
+        {
+          
+            // Detect if player is within the field of view
+            if (Physics.Raycast(transform.position, rayDirection, out hit))
+            {
+
+                TargetDistance = hit.distance;
+
+                if ((TargetDistance <= spottingRange) && (hit.transform.CompareTag("Player")))
+                    {
+                        //if (pursuit == false)
+                        //{
+                            print("Chasing");
+                            StartCoroutine(SetDestination());
+                            //pursuit = true;
+                        //}
+
+                    }
+            //Debug.Log(hit.transform.tag);
+            //print(hit.transform.CompareTag("Player"));
+            }
+        }
+
         RaycastHit TheHit;
 
         if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), out TheHit))
         {
             TargetDistance = TheHit.distance;
 
-            if ((TargetDistance <= spottingRange) && (TheHit.transform.tag == "Player") || pursuit == true)
+            if ((TargetDistance > spottingRange) || (TheHit.transform.tag != "Player"))
+            {
+                print("Patrolling");
+                SetPatrol();
+                once = false;
+
+            }
+        }
+
+        /*RaycastHit TheHit;
+
+        if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), out TheHit))
+        {
+            TargetDistance = TheHit.distance;
+
+            if ((TargetDistance <= spottingRange) && (TheHit.transform.tag == "Player"))
             {
                 //Debug.Log(TheHit.transform.tag);
                 StartCoroutine(SetDestination());
@@ -86,7 +150,7 @@ public class NPCMove1 : MonoBehaviour
                 once = false;
 
             }
-        }
+        }*/
     }
 
     private IEnumerator SetDestination()
@@ -96,9 +160,15 @@ public class NPCMove1 : MonoBehaviour
         {
             alert.gameObject.SetActive(true);
             GetComponent<NavMeshAgent>().speed = 8F;
-            spottingRange = spottingRange * 2;
-            print("Spotting Range OC" + spottingRange);
-            source.PlayOneShot(clip1);
+            fieldOfViewDegrees = 100f;
+            spottingRange = 16;
+
+            if (pursuit == false)
+            {
+                source.PlayOneShot(clip1);
+                pursuit = true;
+            }
+
             print("Target Spotted!");
             once = true;
             once2 = false;
@@ -106,8 +176,6 @@ public class NPCMove1 : MonoBehaviour
 
         Vector3 targetVector = destination.transform.position;
         navMeshAgent.SetDestination(targetVector);
-        yield return new WaitForSeconds(2);
-        alert.gameObject.SetActive(false);
 
         /*RaycastHit spot;
         if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), out spot))
@@ -119,76 +187,82 @@ public class NPCMove1 : MonoBehaviour
                 notChase = true;
             }
         }*/
-
-        if (Vector3.Distance(agent.position, destination.transform.position) < spottingRange * 2)
+        RaycastHit spot;
+        if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.forward), out spot))
         {
-            print("Maintaining sight on target!");
-            print("Spotting Range VD" + spottingRange);
-            targetVector = destination.transform.position;
-            navMeshAgent.SetDestination(targetVector);
-        }
-        else
-        {
-            print("Lost target heading to their last known location...");
-
-            if (once2 == false)
+            if ((TargetDistance < spottingRange) && (spot.transform.tag == "Player"))
             {
-                GetComponent<NavMeshAgent>().speed = 12F;
-                spottingRange = 10;
-
+                print("Target in sight!");
                 targetVector = destination.transform.position;
                 navMeshAgent.SetDestination(targetVector);
             }
+            else
+            {
+                print("Lost target heading to their last known location...");
 
-            yield return new WaitForSeconds(15);
-            once2 = true;
-            pursuit = false;
-            spottingRange = 8;
-            notChase = true;
+                if (once2 == false)
+                {
+                    GetComponent<NavMeshAgent>().speed = 12F;
+                    spottingRange = 10;
+                    targetVector = destination.transform.position;
+                    navMeshAgent.SetDestination(targetVector);
+                }
+
+                yield return new WaitForSeconds(10);
+                once2 = true;
+                pursuit = false;
+                spottingRange = 8;
+                notChase = true;
+                print("Target lost, heading back...");
+                fieldOfViewDegrees = 120f;
+                SetPatrol();
+            }
         }
 
-}
+        yield return new WaitForSeconds(2);
+        alert.gameObject.SetActive(false);
+        pursuit = false;
+    }
 
 private void SetPatrol()
 {
-GetComponent<NavMeshAgent>().speed = 3.5F;
+    GetComponent<NavMeshAgent>().speed = 3.5F;
 
-if (notChase == false)
-{
-    //code to patrol
-    if ((Vector3.Distance(agent.position, patrolPoint1.transform.position) < 0.25) && (Vector3.Distance(agent.position, patrolPoint2.transform.position) > 1))
+    if (notChase == false)
     {
+            //code to patrol
+            if ((Vector3.Distance(agent.position, patrolPoint1.transform.position) < 0.25) && (Vector3.Distance(agent.position, patrolPoint2.transform.position) > 1))
+            {
 
-        navMeshAgent.SetDestination(patrolPoint2.transform.position);
+                navMeshAgent.SetDestination(patrolPoint2.transform.position);
 
+            }
+            else if ((Vector3.Distance(agent.position, patrolPoint2.transform.position) < 0.25) && (Vector3.Distance(agent.position, patrolPoint1.transform.position) > 1))
+            {
+
+                navMeshAgent.SetDestination(patrolPoint1.transform.position);
+
+            }
+        }
+        else
+        {
+            //code to return back to patrolling after chasing
+            if (Vector3.Distance(agent.position, patrolPoint1.transform.position) < Vector3.Distance(agent.position, patrolPoint2.transform.position))
+            {
+
+                Vector3 patrolVector = patrolPoint1.transform.position;
+                navMeshAgent.SetDestination(patrolVector);
+                notChase = false;
+
+            }
+            else
+            {
+
+                Vector3 patrolVector = patrolPoint2.transform.position;
+                navMeshAgent.SetDestination(patrolVector);
+                notChase = false;
+
+            }
+        }
     }
-    else if ((Vector3.Distance(agent.position, patrolPoint2.transform.position) < 0.25) && (Vector3.Distance(agent.position, patrolPoint1.transform.position) > 1))
-    {
-
-        navMeshAgent.SetDestination(patrolPoint1.transform.position);
-
-    }
-}
-else
-{
-    //code to return back to patrolling after chasing
-    if (Vector3.Distance(agent.position, patrolPoint1.transform.position) < Vector3.Distance(agent.position, patrolPoint2.transform.position))
-    {
-
-        Vector3 patrolVector = patrolPoint1.transform.position;
-        navMeshAgent.SetDestination(patrolVector);
-        notChase = false;
-
-    }
-    else
-    {
-
-        Vector3 patrolVector = patrolPoint2.transform.position;
-        navMeshAgent.SetDestination(patrolVector);
-        notChase = false;
-
-    }
-}
-}
-
 }

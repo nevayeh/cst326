@@ -37,7 +37,6 @@ public class PlayerController : MonoBehaviour
         Vector3 movement = (cameraPlayerDifference * moveVertical + camera.transform.right * moveHorizontal) * movementSpeed;
         transform.rotation = Quaternion.LookRotation(movement);
 
-
         transform.Translate(movement * movementSpeed * Time.deltaTime, Space.World);
 
         //ControlMovement();
